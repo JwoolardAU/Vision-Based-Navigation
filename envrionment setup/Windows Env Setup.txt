@@ -1,0 +1,49 @@
+## Windows Machine Installation ##
+
+Install Anaconda Python and Git for Windows.
+
+Create a Python3 conda envrionment- 
+    conda create -n <env> python=3.x
+    (to remove conda envs do: conda env remove -n <env>) 
+
+Activate the conda envrionment and install tensorflow
+    conda activate <env>
+    pip install tensorflow
+
+Navigate to a folder of you choosing 
+and clone the models folder from Tensorflow
+    git clone https://github.com/tensorflow/models
+
+Install protoc and add it to your Path
+Run the following command from the 
+./models/research folder of the tensorflow clone 
+    protoc object_detection/protos/*.proto --python_out=.
+
+To ensure the protoc command ran correctly,
+navigate to the ./models/research/object_detection/protos folder.
+Ensure there are .py files. 
+
+Navigate to ./models/research/object_detection/packages/tf2 folder.
+Copy setup.py to research folder. 
+
+Run the following commands from the research folder: 
+
+    pip install cython
+
+    pip install git+https://github.com/philferriere/cocoapi.git#subdirectory=PythonAPI
+
+    python setup.py build
+    python setup.py install
+
+The install command may take a while.
+It is installing dependencies. 
+Make sure it doesn't get stuck trying 
+to resolve a specific package. 
+
+To ensure everything is working run the following command from the research folder
+    python object_detection/builders/model_builder_tf2_test.py
+
+If this runs without fail, Congrats! Everything is ready to go!
+
+If you have a gpu, now is the time to look into 
+setting up gpu support for tensorflow. 
