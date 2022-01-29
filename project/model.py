@@ -49,7 +49,22 @@ class Model:
         self.imwidth = 640
         self.imheight = 480
     
+    def get_detections(self, img):
+        # Prepare the image 
+        img_np = np.array(img)
+        input_tensor = tf.convert_to_tensor(img_np)
+        input_tensor = input_tensor[tf.newaxis, ...]
 
+        # Get output from model 
+        detections = self.detect_fn(input_tensor)
+        num_detections = int(detections.pop('num_detections'))
+
+        # unrap the model to make it easier to work with 
+        detections = {key: value[0, :num_detections].numpy()
+                    for key, value in detections.items()}
+        
+        return detections
+        
     def detect(self, img, max_boxes, min_score):
         """
             Method to utilize the model and make predictions 
@@ -85,6 +100,32 @@ class Model:
 
         return image_np_with_detections, detections
 
+    def get_class_centers(self, detections, num_boxes, model_class):
+        
+        centers = []
+        count = 0
+        
+        for box in detections['detection_boxes'][0:num_boxes]: # Only look at the top few we want to display 
+            
+            # The # that the model thinks this detection is.
+            # Corresponds to the label_map
+            class_id = detections['detection_classes'][count]
+
+            if class_id == model_class: # Drone has class 1, based on label_map.pbtxt
+                # Normalized coordinates from the model
+                (ymin, xmin, ymax, xmax) = tuple(box.tolist())
+                # Actual coordinates on the image 
+                (left, right, top, bottom) = (xmin * self.imwidth, xmax * self.imwidth, ymin * self.imheight, ymax * self.imheight)
+
+                xavg = (left + right) // 2 
+                yavg = (bottom + top) // 2
+            
+                # Append a tuple containing the cordinates to the list of centers
+                centers.append((xavg, yavg))
+
+            count += 1
+        return centers
+
     def draw_centers(self, img, detections, num_boxes):
 
         centers = []
@@ -100,7 +141,7 @@ class Model:
             xavg = (left + right) // 2 
             yavg = (bottom + top) // 2
             
-            # The # that the model thinks this detectio is.
+            # The # that the model thinks this detection is.
             # Corresponds to the label_map
             class_id = detections['detection_classes'][count]
 
