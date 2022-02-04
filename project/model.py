@@ -11,9 +11,14 @@ model.py
 import tensorflow as tf
 import numpy as np
 import cv2
+
 ## object_detection API imports 
 from object_detection.utils import label_map_util
 from object_detection.utils import visualization_utils as viz_utils
+
+## ID manager import and plotting modules
+from idmanager import IDManager
+import matplotlib.pyplot as plt
 
 class Model:
     """
@@ -31,15 +36,17 @@ class Model:
             class the model is trained to detect. 
     """
 
+
     def __init__(self, a_model_path, a_label_path):
         """ Set everything up to run """
         # Suppress TensorFlow logging (2)
         tf.get_logger().setLevel('ERROR')           
-
+	
+	# Pat and Wes: Comment out for more VRAM, uncomment for machines w/ less resources
         # enable dynamic memory 
-        gpus = tf.config.experimental.list_physical_devices('GPU')
-        for gpu in gpus:
-            tf.config.experimental.set_memory_growth(gpu, True)
+        #gpus = tf.config.experimental.list_physical_devices('GPU')
+        #for gpu in gpus:
+        #    tf.config.experimental.set_memory_growth(gpu, True)
         
         # Load the Model 
         self.detect_fn =  tf.saved_model.load(a_model_path)
@@ -48,43 +55,44 @@ class Model:
 
         self.imwidth = 640
         self.imheight = 480
-    
-    def get_detections(self, img):
-        # Prepare the image 
-        img_np = np.array(img)
-        input_tensor = tf.convert_to_tensor(img_np)
-        input_tensor = input_tensor[tf.newaxis, ...]
 
-        # Get output from model 
-        detections = self.detect_fn(input_tensor)
-        num_detections = int(detections.pop('num_detections'))
 
-        # unrap the model to make it easier to work with 
-        detections = {key: value[0, :num_detections].numpy()
-                    for key, value in detections.items()}
-        
-        return detections
-        
-    def detect(self, img, max_boxes, min_score):
+        # Create ID manager in model and update positions in draw_centers
+        # Since localization info for Drones is obtained there
+        self.IDS = IDManager();
+
+        # Create an ID for each drone used during flight
+        self.IDS.createID((0,0)) # Drone 1 hard-coded for now
+        self.IDS.createID((100,100)) # Drone 2 Hard-coded for now
+        #self.IDS.createID((100,100)) # Drone 2 hard-coded for now
+
+        self.dronepath = []
+
+    def detect(self, img_np):
         """
             Method to utilize the model and make predictions 
         """
         
         # Prepare the image 
-        img_np = np.array(img)
         input_tensor = tf.convert_to_tensor(img_np)
         input_tensor = input_tensor[tf.newaxis, ...]
 
         # Get output from model 
         detections = self.detect_fn(input_tensor)
-
         num_detections = int(detections.pop('num_detections'))
 
-        # unrap the model to make it easier to work with 
         detections = {key: value[0, :num_detections].numpy()
-                    for key, value in detections.items()}
-        
-        detections['num_detections'] = num_detections
+                      for key, value in detections.items()}
+
+        return detections
+
+    def draw_bounding_boxes(self, img, max_boxes, min_score):
+        """ 
+            Implementation of the object_detection API boxes 
+        """
+        img_np = np.array(img)
+        detections = self.detect(img_np)
+
         detections['detection_classes'] = detections['detection_classes'].astype(np.int64)
         image_np_with_detections = img_np.copy()
         viz_utils.visualize_boxes_and_labels_on_image_array(
@@ -99,10 +107,32 @@ class Model:
             agnostic_mode=False)
 
         return image_np_with_detections, detections
+    
+    def compute_center(self, box):
+        """
+            Method to compute the center of a box.
+            Box is the normalized coords from the model. 
+        """
+        # Normalized coordinates from the model
+        (ymin, xmin, ymax, xmax) = tuple(box.tolist())
+        # Actual coordinates on the image 
+        (left, right, top, bottom) = (xmin * self.imwidth, xmax * self.imwidth, ymin * self.imheight, ymax * self.imheight)
 
-    def get_class_centers(self, detections, num_boxes, model_class):
-        
-        centers = []
+        xavg = (left + right) // 2 
+        yavg = (bottom + top) // 2
+            
+        # Append a tuple containing the cordinates to the list of centers
+        return (xavg, yavg)
+
+
+    def get_class_centers(self, detections, num_boxes):
+        """
+            Method to parse detections -- the output of the model -- 
+            and select only points that are of a certain class 
+            The class_num referse to the label map. 
+        """
+        drone_centers = []
+        flag_centers = []
         count = 0
         
         for box in detections['detection_boxes'][0:num_boxes]: # Only look at the top few we want to display 
@@ -111,50 +141,41 @@ class Model:
             # Corresponds to the label_map
             class_id = detections['detection_classes'][count]
 
-            if class_id == model_class: # Drone has class 1, based on label_map.pbtxt
-                # Normalized coordinates from the model
-                (ymin, xmin, ymax, xmax) = tuple(box.tolist())
-                # Actual coordinates on the image 
-                (left, right, top, bottom) = (xmin * self.imwidth, xmax * self.imwidth, ymin * self.imheight, ymax * self.imheight)
-
-                xavg = (left + right) // 2 
-                yavg = (bottom + top) // 2
-            
-                # Append a tuple containing the cordinates to the list of centers
-                centers.append((xavg, yavg))
-
+            if class_id == 1: # Drone has class 1, based on label_map.pbtxt
+               center = self.compute_center(box)
+               drone_centers.append(center)
+            elif class_id == 2:
+                center = self.compute_center(box)
+                flag_centers.append(center)
             count += 1
-        return centers
 
+        return drone_centers, flag_centers
+
+    
     def draw_centers(self, img, detections, num_boxes):
 
-        centers = []
-        count = 0
+        drone_centers, flag_centers = self.get_class_centers(detections, num_boxes)
+        
+        for center in drone_centers:
+            (xavg, yavg) = center
+            img = cv2.circle(img, (int(xavg), int(yavg)), 4, (0, 0, 255), -1) # b g r
 
-        for box in detections['detection_boxes'][0:num_boxes]: # Only look at the top few we want to display 
-            
-            # Normalized coordinates from the model
-            (ymin, xmin, ymax, xmax) = tuple(box.tolist())
-            # Actual coordinates on the image 
-            (left, right, top, bottom) = (xmin * self.imwidth, xmax * self.imwidth, ymin * self.imheight, ymax * self.imheight)
+        for center in flag_centers:
+            (xavg, yavg) = center
+            img = cv2.circle(img, (int(xavg), int(yavg)), 4, (0, 255, 255), -1)
+            # img = cv2.rectangle(img, (int(left), int(bottom)), (int(right), int(top)), (0,255,0), -1)
+        
 
-            xavg = (left + right) // 2 
-            yavg = (bottom + top) // 2
-            
-            # The # that the model thinks this detection is.
-            # Corresponds to the label_map
-            class_id = detections['detection_classes'][count]
+        for id in self.IDS.IDS:
+            print(f"Drone {id.IDnum} was at {id.get_position()}")
+            self.dronepath.append(id.get_position())
 
-            # A tuple containing the cordinates and the detection is added to a list
-            centers.append((xavg, yavg, class_id))
+        self.IDS.updatePositions(drone_centers)
 
-            # Fancy stuff based on id
-            if class_id == 1:
-                img = cv2.circle(img, (int(xavg), int(yavg)), 4, (0, 0, 255), -1)
-            else:
-                img = cv2.circle(img, (int(xavg), int(yavg)), 4, (0, 0, 255), -1)
-                # img = cv2.rectangle(img, (int(left), int(bottom)), (int(right), int(top)), (0,255,0), -1)
-            
-            count += 1
 
-        return img, centers
+        for id in self.IDS.IDS:
+            print(f"ID {id.IDnum} is 'now' at {id.get_position()}")
+
+        img = self.IDS.draw_ids(img)
+
+        return img, drone_centers, flag_centers
