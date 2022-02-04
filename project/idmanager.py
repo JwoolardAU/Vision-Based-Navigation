@@ -57,9 +57,10 @@ class IDManager:
                 del possiblePositions[lowest_index]
 
                 id.update_position(updated_position)
+
     def draw_ids(self, img):
         for id in self.IDS:
-            img = cv2.putText(img, str(id.IDnum), (int(id.x), int(id.y)), fontFace=cv2.FONT_HERSHEY_TRIPLEX, fontScale=1, color=(255, 255, 255),thickness=1)
+            img = cv2.putText(img, str(id.IDnum), (int(id.x), int(id.y)), fontFace=cv2.FONT_HERSHEY_TRIPLEX, fontScale=1, color=(75, 0, 130),thickness=1)
         return img
             
 
@@ -68,39 +69,36 @@ if __name__ == '__main__':
 
     IDS = IDManager()
 
-    num = input('How many drones?')
+    num = input('How many drones? ')
     print()
 
     initial_positions = []
     for x in range(int(num)):
-        print(f"Drone Num: {x}")
-        x = input('Initial X?')
-        y = input('Initial Y?')
+        print(f"Drone Num: {x+1}")
+        x = input('Initial X? ')
+        y = input('Initial Y? ')
         print()
 
         IDS.createID((int(x),int(y)))
     
-    num = input("How many possible points do you want to give?")
+    num = input("How many possible points do you want to give? ")
 
     possiblePositions = []
     for x in range(int(num)):
-        possiblePositions.append((randint(0,20), randint(0,20)))
+        possiblePositions.append((randint(0,640), randint(0,480)))
 
-    print()
-    print("Starting Positions")
+    print("\nStarting Positions")
     for id in IDS.IDS:
-        print(id.get_position())
+        print(f"Drone {id.IDnum} starts at {id.get_position()}")
 
-    print()
-    print("Possible Possitions")
+    print("\nPossible Possitions")
     print(possiblePositions)
 
     IDS.updatePositions(possiblePositions)
 
-    print()
-    print("Updated Possitions")
+    print("\nUpdated Possitions")
     for id in IDS.IDS:
-        print(f"ID {id.IDnum} is at {id.get_position()}")
+        print(f"ID {id.IDnum} is 'now' at {id.get_position()}")
     
 
 
@@ -123,7 +121,7 @@ if __name__ == '__main__':
 
 """
     Assign an ID to the drone at the beginning. 
-    The ID begins with the postiion of the drone.
+    The ID begins with the Initial postion of the drone.
 
     To Update the ID, pass a list of potential points
     and select the point that is closest to the ID.
