@@ -10,8 +10,10 @@ class IDManager:
             """ An ID is definied by its x, y position"""
             self.IDnum = IDnum
             (self.x, self.y) = position
+            self.position_history = []
         
         def update_position(self, position):
+            self.position_history.append(position)
             (self.x, self.y) = position
         
         def get_position(self):
