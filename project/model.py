@@ -128,8 +128,7 @@ class Model:
     def get_class_centers(self, detections, num_boxes):
         """
             Method to parse detections -- the output of the model -- 
-            and select only points that are of a certain class 
-            The class_num referse to the label map. 
+            to get the list of drone points and flag points separately. 
         """
         drone_centers = []
         flag_centers = []
