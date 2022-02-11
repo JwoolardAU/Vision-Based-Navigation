@@ -59,11 +59,11 @@ class Model:
 
         # Create ID manager in model and update positions in draw_centers
         # Since localization info for Drones is obtained there
-        self.IDS = IDManager();
+        self.IDS = IDManager()
 
         # Create an ID for each drone used during flight
-        self.IDS.createID((0,0)) # Drone 1 hard-coded for now
-        self.IDS.createID((100,100)) # Drone 2 Hard-coded for now
+        self.IDS.createID((0,0),(0,0,255)) # Drone 1 hard-coded for now
+        self.IDS.createID((100,100), (255,0,0)) # Drone 2 Hard-coded for now
         #self.IDS.createID((100,100)) # Drone 2 hard-coded for now
 
         self.dronepath = []
@@ -150,7 +150,20 @@ class Model:
 
         return drone_centers, flag_centers
 
-    
+    def update_ids(self, detections, num_boxes):
+        
+        drone_centers, flag_centers = self.get_class_centers(detections, num_boxes)
+
+        for id in self.IDS.IDS:
+            #print(f"Drone {id.IDnum} was at {id.get_position()}")
+            self.dronepath.append(id.get_position())
+
+        self.IDS.updatePositions(drone_centers)
+
+        #for id in self.IDS.IDS:
+            #print(f"ID {id.IDnum} is 'now' at {id.get_position()}")
+        
+
     def draw_centers(self, img, detections, num_boxes):
 
         drone_centers, flag_centers = self.get_class_centers(detections, num_boxes)
@@ -163,17 +176,6 @@ class Model:
             (xavg, yavg) = center
             img = cv2.circle(img, (int(xavg), int(yavg)), 4, (0, 255, 255), -1)
             # img = cv2.rectangle(img, (int(left), int(bottom)), (int(right), int(top)), (0,255,0), -1)
-        
-
-        for id in self.IDS.IDS:
-            print(f"Drone {id.IDnum} was at {id.get_position()}")
-            self.dronepath.append(id.get_position())
-
-        self.IDS.updatePositions(drone_centers)
-
-
-        for id in self.IDS.IDS:
-            print(f"ID {id.IDnum} is 'now' at {id.get_position()}")
 
         img = self.IDS.draw_ids(img)
 

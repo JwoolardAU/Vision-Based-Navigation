@@ -1,16 +1,18 @@
 import math
 from random import randint
+import numpy as np
 import cv2
 
 class IDManager:
     
     class ID:
     
-        def __init__(self, position, IDnum):
+        def __init__(self, position, IDnum, color):
             """ An ID is definied by its x, y position"""
             self.IDnum = IDnum
             (self.x, self.y) = position
             self.position_history = []
+            self.color = color
         
         def update_position(self, position):
             self.position_history.append(position)
@@ -18,6 +20,39 @@ class IDManager:
         
         def get_position(self):
             return (self.x,self.y)
+        
+        def draw_history(self, num_points, img):
+            """
+                Draw the most recent "num_points" number of points. 
+            """
+            total_length = len(self.position_history)
+
+            # If the number of points we want to display is 
+            # larger than the what is in the list, update num_points to be everything in the list.
+            if num_points > total_length:
+                num_points = total_length
+
+            max_index = total_length - 1
+            stop_index = total_length - num_points
+
+            points = self.position_history
+
+            # Draw "num_points" number of points. 
+            # Index of a list syntax: list_name[start:stop:step]
+            # Step of -1 goes backwards. 
+            for point in points[max_index:stop_index:-1]:
+                (x,y) = point
+                img = cv2.circle(img, (int(x), int(y)), 4, self.color, -1)
+            
+            return img
+
+        def draw_total_history(self, img):
+            num_items = len(self.position_history)
+            updatedImg = self.draw_history(num_items, img)
+            return updatedImg
+    
+    ## End of ID Class##
+    ## Start of ID Manager Class ##
 
     def __init__(self):
         """ 
@@ -27,13 +62,13 @@ class IDManager:
         self.IDS = []
         self.IDnum = 0
 
-    def createID(self, position):
+    def createID(self, position, color):
         """
             When given a new position, increment the IDnum
             and assign the new ID a position. 
         """
         self.IDnum += 1
-        self.IDS.append(self.ID(position, self.IDnum))
+        self.IDS.append(self.ID(position, self.IDnum, color))
         
     def updatePositions(self, possiblePositions):
         """

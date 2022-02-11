@@ -26,7 +26,7 @@ Detector = Model(PATH_TO_SAVED_MODEL, PATH_TO_LABELS)
 
 # Drone 1 has password of 12345678 
 
-cam = cv2.VideoCapture(0)
+cam = cv2.VideoCapture(1)
 
 # How many boxes do we want displaying? 
 num_boxes = 6
@@ -46,20 +46,20 @@ while True:
         # Convert RGB back to BGR for cv2's imshow function.
         detected_image = cv2.cvtColor(detected_image, cv2.COLOR_RGB2BGR)
 
-        # Get the num_boxes number of center coordinates and display them on the image. 
-        centers_img, drone_centers, flag_centers = Detector.draw_centers(detected_image, detections, num_boxes)
+        # update the ID's
+        Detector.update_ids(detections, num_boxes)
 
-        cv2.imshow('Img', centers_img)
+        for id in Detector.IDS.IDS:
+            detected_image = id.draw_history(20, detected_image)
+        
+        updated_image = Detector.IDS.draw_ids(detected_image)
+
+        # Get the num_boxes number of center coordinates and display them on the image. 
+        #centers_img, drone_centers, flag_centers = Detector.draw_centers(detected_image, detections, num_boxes)
+
+        cv2.imshow('Img', updated_image)
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
-
-ret, img = cam.read()
-for point in Detector.dronepath:
-    (x, y) = point
-    img = cv2.circle(img, (int(x), int(y)), 4, (0, 255, 0), -1)
-cv2.imshow('path', img) 
-cv2.waitKey(0)
-
 
 """
 What's next?? 
