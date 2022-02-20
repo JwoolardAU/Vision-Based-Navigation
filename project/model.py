@@ -11,6 +11,7 @@ model.py
 import tensorflow as tf
 import numpy as np
 import cv2
+import math
 
 ## object_detection API imports 
 from object_detection.utils import label_map_util
@@ -63,7 +64,7 @@ class Model:
 
         # Create an ID for each drone used during flight
         self.IDS.createID((0,0),(0,0,255)) # Drone 1 hard-coded for now
-        self.IDS.createID((100,100), (255,0,0)) # Drone 2 Hard-coded for now
+        #self.IDS.createID((100,100), (255,0,0)) # Drone 2 Hard-coded for now
         #self.IDS.createID((100,100)) # Drone 2 hard-coded for now
 
         self.dronepath = []
@@ -180,3 +181,64 @@ class Model:
         img = self.IDS.draw_ids(img)
 
         return img, drone_centers, flag_centers
+
+    def get_one_class_centers(self, img, num_items, class_id):
+        """
+            Function to get fly to points from image
+        """
+
+        img_np = np.array(img)
+        detections = self.detect(img_np)
+        class_centers = []
+        count = 0
+
+        for box in detections['detection_boxes'][0:num_items]: # Only look at the top few we want to display 
+            detection_id = detections['detection_classes'][count]
+
+            if detection_id == class_id: 
+               center = self.compute_center(box)
+               class_centers.append(center)
+            count += 1
+            
+        self.update_ids(detections, num_boxes=6)
+
+        return class_centers
+
+    def compute_2d_vector(self, point2, point1):
+        """
+            Function to take a list of 2d positions 
+            and compute the vector.
+        """
+        # unpackage the points from the input
+        (x2, y2) = point2
+        (x1, y1) = point1 
+
+        # compute the vector 
+        vector = (int(x2-x1), int(y2-y1))
+
+        return vector
+    
+    def dotProduct_2d(self, vector1, vector2):
+        """
+            Function to compute a dot product
+            a dot b = |a||b|cos(theta) ->
+            theta = acos( a dot b / (|a||b|) )
+
+            Input for use case with drones:
+                vector1: Dir Vector of drone (x, y)
+                vector2: Position vector of flag from 
+                    drone relative to the mid point of the drone (x,y)
+
+        """
+        (x1, y1) = vector1
+        (x2, y2) = vector2 
+
+        a_dot_b = x1*x2 + y1*y2 
+        length_a = math.sqrt(x1**2 + y1**2)
+        length_b = math.sqrt(x2**2 + y2**2)
+
+        theta = math.acos(a_dot_b/(length_a*length_b)) * (180/math.pi)
+
+        return theta 
+
+        

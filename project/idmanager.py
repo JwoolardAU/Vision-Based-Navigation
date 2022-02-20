@@ -13,6 +13,7 @@ class IDManager:
             (self.x, self.y) = position
             self.position_history = []
             self.color = color
+            self.des_points = []
         
         def update_position(self, position):
             self.position_history.append(position)
@@ -99,9 +100,28 @@ class IDManager:
         for id in self.IDS:
             img = cv2.putText(img, str(id.IDnum), (int(id.x), int(id.y)), fontFace=cv2.FONT_HERSHEY_TRIPLEX, fontScale=1, color=(75, 0, 130),thickness=1)
         return img
+
+    def get_current_positions(self,):
+        """
+            Function to get the direction vectors of every ID
+        """
+        positions = []
+        for id in self.IDS:
+            positions.append( ( int(id.position_history[-1][0]), int(id.position_history[-1][1])) )
+
+        return positions
             
+    def assign_destinations(self, destinations):
+        """
+            Function to assign the ID's a number of destinations based on the total num of destinations.
 
-
+            Idea: 
+                Get drone points, and determine what "flag" each drone is closesst to.
+                Assign the remaining flags to the two drones by which flag is closest to the flag that the drone is closest to. 
+        """
+        pass 
+    
+                
 if __name__ == '__main__':
 
     IDS = IDManager()
