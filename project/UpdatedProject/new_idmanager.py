@@ -19,6 +19,7 @@ class IDManager:
             self.color = color
 
             self.position_history = []
+            self.position_history.append(position)
 
             # Attritubtes used to compute direction vectors and affect the direction
             self.flag_point = (0,0)

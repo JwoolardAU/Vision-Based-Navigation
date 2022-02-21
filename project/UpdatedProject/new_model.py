@@ -53,6 +53,7 @@ class Model:
 
         # Create an Initial ID for each drone used during flight
         self.id_manager.createID((20,20),(0,0,255))
+        self.id_manager.createID((0,0),(0,0,255))
 
         # Create attritubes for commonly accessed items so they don't
         # have to be juggled around Method calls
@@ -193,13 +194,18 @@ class Model:
 
             # Determine the cateogry and append it to the appropriate list
             class_category = self.detections['detection_classes'][index]
-            if class_category == self.drone_category:
-                drone_cents.append(center) 
-            elif class_category == self.flag_category:
-                flag_cents.append(center)
+            confidence = self.detections['detection_scores'][index]
+
+            if confidence > self.thresh:
+                if class_category == self.drone_category:
+                    drone_cents.append(center) 
+                elif class_category == self.flag_category:
+                    flag_cents.append(center)
+                
+            index += 1
         
         self.drone_centers = drone_cents
-        self.flag_centers = drone_cents
+        self.flag_centers = flag_cents
 
         self.id_manager.updatePositions(drone_cents)
 
@@ -267,8 +273,10 @@ class Model:
         for id in self.id_manager.IDS:
             dot = self.dot_product(id.dir_vector, id.flag_vector)
             det = self.determinate(id.dir_vector, id.flag_vector)
-            id.turn_angle = math.atan2(det, dot)
+            id.turn_angle = math.atan2(det, dot) * 180/math.pi
 
         return None
+
+        
 
         
