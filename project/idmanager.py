@@ -1,31 +1,45 @@
 import math
 from random import randint
-import numpy as np
 import cv2
 
 class IDManager:
-    
+    """
+        Funciton differentiate between multiple objects of the same category  
+    """
+
     class ID:
-    
-        def __init__(self, position, IDnum, color):
-            """ An ID is definied by its x, y position"""
-            self.IDnum = IDnum
+        """
+            An ID will be defined by its x, y position
+        """
+        def __init__(self, position, id_num, color):
+            
+            self.id_num = id_num
+            self.position = position
             (self.x, self.y) = position
-            self.position_history = []
             self.color = color
-            self.des_points = []
+
+            self.position_history = []
+            self.position_history.append(position)
+
+            # Attritubtes used to compute direction vectors and affect the direction
+            self.flag_point = (0,0)
+            self.starting_position = (0,0)
+            self.ending_posiiton = (0,0)
+            self.dir_vector = (0,0)
+            self.flag_vector = (0,0)
+            self.turn_angle = 0
         
         def update_position(self, position):
+            """ Update the position history and position attribute"""
             self.position_history.append(position)
             (self.x, self.y) = position
-        
-        def get_position(self):
-            return (self.x,self.y)
+            self.position = position
         
         def draw_history(self, num_points, img):
+            """ Draw the most recent points for this ID
+                num_points is how many points to draw
             """
-                Draw the most recent "num_points" number of points. 
-            """
+
             total_length = len(self.position_history)
 
             # If the number of points we want to display is 
@@ -36,23 +50,15 @@ class IDManager:
             max_index = total_length - 1
             stop_index = total_length - num_points
 
-            points = self.position_history
-
-            # Draw "num_points" number of points. 
             # Index of a list syntax: list_name[start:stop:step]
             # Step of -1 goes backwards. 
-            for point in points[max_index:stop_index:-1]:
+            for point in self.position_history[max_index:stop_index:-1]:
                 (x,y) = point
-                img = cv2.circle(img, (int(x), int(y)), 4, self.color, -1)
+                img = cv2.circle(img, point, 4, self.color, -1)
             
-            return img
+            return img 
 
-        def draw_total_history(self, img):
-            num_items = len(self.position_history)
-            updatedImg = self.draw_history(num_items, img)
-            return updatedImg
-    
-    ## End of ID Class##
+    ## End of ID Class ##
     ## Start of ID Manager Class ##
 
     def __init__(self):
@@ -62,15 +68,15 @@ class IDManager:
         """
         self.IDS = []
         self.IDnum = 0
-
+    
     def createID(self, position, color):
-        """
-            When given a new position, increment the IDnum
-            and assign the new ID a position. 
-        """
-        self.IDnum += 1
-        self.IDS.append(self.ID(position, self.IDnum, color))
-        
+            """
+                When given a new position, increment the IDnum
+                and assign the new ID a position. 
+            """
+            self.IDnum += 1
+            self.IDS.append(self.ID(position, self.IDnum, color))
+    
     def updatePositions(self, possiblePositions):
         """
         Compute the distances from each ID to all the possible 
@@ -96,22 +102,34 @@ class IDManager:
 
                 id.update_position(updated_position)
 
-    def draw_ids(self, img):
+    def draw_id_nums(self, img):
         for id in self.IDS:
-            img = cv2.putText(img, str(id.IDnum), (int(id.x), int(id.y)), fontFace=cv2.FONT_HERSHEY_TRIPLEX, fontScale=1, color=(75, 0, 130),thickness=1)
+            img = cv2.putText(img, str(id.id_num), id.position, fontFace=cv2.FONT_HERSHEY_TRIPLEX, fontScale=1, color=id.color,thickness=1)
         return img
-
-    def get_current_positions(self,):
+    
+    def get_current_positions(self):
         """
-            Function to get the direction vectors of every ID
+            Function to get the position of every ID
         """
         positions = []
         for id in self.IDS:
-            positions.append( ( int(id.position_history[-1][0]), int(id.position_history[-1][1])) )
+            positions.append(id.position_history[-1])
 
-        return positions
-            
-    def assign_destinations(self, destinations):
+        return positions 
+    
+    def set_starting_positions(self):
+
+        for id in self.IDS:
+            id.starting_position = id.position_history[-1]
+        return None
+    
+    def set_ending_positions(self):
+
+        for id in self.IDS:
+            id.ending_position = id.position_history[-1]
+        return None
+
+    def assign_destination(self, destinations):
         """
             Function to assign the ID's a number of destinations based on the total num of destinations.
 
@@ -121,7 +139,31 @@ class IDManager:
         """
         pass 
     
-                
+    def draw_vectors(self, img):
+        output = img
+        for id in self.IDS:
+            # Pre moving and Flag positions
+            output = cv2.circle(output, id.starting_position, 5, (255,0,0), -1)
+            output = cv2.circle(output, id.flag_point, 5, (0,255,0),-1)
+            # Vectors
+            dirPoint2 = (id.ending_position[0] + id.dir_vector[0], id.ending_position[1] + id.dir_vector[1])
+            output = cv2.line(output, id.ending_position, dirPoint2, (255,0,255), 3)
+            flagPoint2 = (id.ending_position[0] + id.flag_vector[0], id.ending_position[1] + id.flag_vector[1])
+            output = cv2.line(output, id.ending_position, flagPoint2, (0 ,0,255), 3)
+        
+        return output
+    
+    def draw_IDS_history(self, img, num_points):
+
+        for id in self.IDS:
+            img = id.draw_history(20, img)
+
+        return img
+
+
+
+### Main ### 
+
 if __name__ == '__main__':
 
     IDS = IDManager()
@@ -156,41 +198,3 @@ if __name__ == '__main__':
     print("\nUpdated Possitions")
     for id in IDS.IDS:
         print(f"ID {id.IDnum} is 'now' at {id.get_position()}")
-    
-
-
-    
-
-
-
-        
-
-                
-
-
-                
-
-
-
-
-
-
-
-"""
-    Assign an ID to the drone at the beginning. 
-    The ID begins with the Initial postion of the drone.
-
-    To Update the ID, pass a list of potential points
-    and select the point that is closest to the ID.
-    Update the ID's position.  
-"""
-
-"""
-    Rather than passing the points to each ID, 
-    Make a manager that will figure it out..
-
-    Collect a list of the drones positions, 
-
-    To Update, pass the lists of potential points, 
-
-"""
