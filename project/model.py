@@ -1,4 +1,3 @@
-from grpc import compute_engine_channel_credentials
 import tensorflow as tf
 import numpy as np
 import cv2
@@ -8,7 +7,7 @@ import math
 from object_detection.utils import label_map_util
 from object_detection.utils import visualization_utils as viz_utils
 
-from new_idmanager import IDManager
+from idmanager import IDManager
 
 class Model:
     """
@@ -64,6 +63,7 @@ class Model:
         self.flag_centers = []
         self.drone_centers = []
         self.update_centers(self.max_boxes)
+        _, self.bounding_box_img = self.cam.read()
 
     def setImg(self, img):
         """
@@ -111,7 +111,16 @@ class Model:
                       for key, value in detections.items()}
 
         return detections
-    
+
+    def update_bounding_boxes_thread(self):
+        while True:
+            self.updateDetections()
+            self.update_centers(self.max_boxes)
+            img = self.draw_bounding_boxes(self.img)
+            img = self.id_manager.draw_IDS_history(img, 10)
+            img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+            self.bounding_box_img = img
+
     def draw_bounding_boxes(self, img = None):
         """
             Implementation of the object_detection API box drawer.
@@ -140,7 +149,6 @@ class Model:
             agnostic_mode=False)
 
         return drawn_img
-    
     def draw_detected_centers(self, img = None):
         """
             Funciton to draw what centers were detected.

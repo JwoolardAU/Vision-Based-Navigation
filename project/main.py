@@ -4,10 +4,10 @@ import numpy as np
 import time
 
 
-from new_model import Model
+from model import Model
 
-PATH_TO_SAVED_MODEL = r'..\resources\model\saved_model'
-PATH_TO_LABELS = r'..\resources\annotations\label_map.pbtxt'
+PATH_TO_SAVED_MODEL = r'.\resources\model\saved_model'
+PATH_TO_LABELS = r'.\resources\annotations\label_map.pbtxt'
 
 # How many boxes do we expect? 
 max_boxes = 6
