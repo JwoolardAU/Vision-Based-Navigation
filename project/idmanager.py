@@ -101,6 +101,11 @@ class IDManager:
                 del possiblePositions[lowest_index]
 
                 id.update_position(updated_position)
+        
+    def updateFlags(self, flags):
+        if flags:
+            for id in self.IDS:
+                id.flag_point = flags[0]
 
     def draw_id_nums(self, img):
         for id in self.IDS:

@@ -9,7 +9,6 @@ import math
 
 # Hard code some points for now, Figure out how to allocate the points later. 
 
-
 def twoDim_dot_product_theta(vector1, vector2):
     """
         Function to compute a dot product

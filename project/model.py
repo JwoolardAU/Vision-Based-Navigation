@@ -120,6 +120,31 @@ class Model:
             img = self.id_manager.draw_IDS_history(img, 10)
             img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
             self.bounding_box_img = img
+    
+    def update_vectors_thread(self):
+        while True:
+            ## Set the starting positions for use later
+            self.id_manager.set_starting_positions()
+
+            ## Update information for model
+            self.updateDetections()
+            self.update_centers(self.max_boxes)
+
+            ## Set the ending position
+            self.id_manager.set_ending_positions()
+
+
+            ## Compute the vectors and turn angles 
+            self.computeDirectionVectors()
+            self.computeFlagVector()
+            self.computeTurnAngles()
+
+            img = self.id_manager.draw_vectors(self.img)
+            img = self.id_manager.draw_id_nums(img)
+            img = self.draw_bounding_boxes(img)
+
+            img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+            self.bounding_box_img = img
 
     def draw_bounding_boxes(self, img = None):
         """
@@ -216,6 +241,7 @@ class Model:
         self.flag_centers = flag_cents
 
         self.id_manager.updatePositions(drone_cents)
+        self.id_manager.updateFlags(flag_cents)
 
         return None 
     
