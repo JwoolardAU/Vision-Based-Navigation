@@ -1,33 +1,36 @@
-import cv2
-import tensorflow as tf
-import numpy as np
-import time
 import concurrent.futures
-
+import cv2
 from model import Model
 
-PATH_TO_SAVED_MODEL = r'.\resources\model\saved_model'
-PATH_TO_LABELS = r'.\resources\annotations\label_map.pbtxt'
 
-# How many boxes do we expect? 
-max_boxes = 6
-# How confident does the model need to be to display any bouding box? 
-min_score_thresh = .70
+def main():
+    PATH_TO_SAVED_MODEL = r'.\resources\model\saved_model'
+    PATH_TO_LABELS = r'.\resources\annotations\label_map.pbtxt'
 
-cam = cv2.VideoCapture(0)
+    # How many boxes do we expect?
+    MAX_BOXES = 6
+    # How confident does the model need to be to display any bouding box?
+    MIN_SCORE_THRESH = .70
 
-Tf_Model = Model(PATH_TO_SAVED_MODEL, PATH_TO_LABELS, cam, max_boxes, min_score_thresh)
+    cam = cv2.VideoCapture(0)
 
-with concurrent.futures.ThreadPoolExecutor() as executor:
-    executor.submit(Tf_Model.update_vectors_thread)
+    Tf_Model = Model(PATH_TO_SAVED_MODEL, PATH_TO_LABELS,
+                     cam, MAX_BOXES, MIN_SCORE_THRESH)
 
-    while True:
-        cv2.imshow("Vector", Tf_Model.bounding_box_img)
-        
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
-    
-    # Clean Exit
-    cv2.destroyAllWindows()
-    Tf_Model.cam.release()
-    executor.shutdown(wait=False)
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        executor.submit(Tf_Model.update_vectors_thread)
+
+        while True:
+            cv2.imshow("Vector", Tf_Model.bounding_box_img)
+
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
+
+        # Clean Exit
+        cv2.destroyAllWindows()
+        Tf_Model.cam.release()
+        executor.shutdown(wait=False)
+
+
+if __name__ == "__main__":
+    main()

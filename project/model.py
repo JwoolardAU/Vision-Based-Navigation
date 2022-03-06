@@ -1,7 +1,7 @@
 import tensorflow as tf
 import numpy as np
 import cv2
-import math 
+import math
 
 # object_detection API Imports
 from object_detection.utils import label_map_util
@@ -9,36 +9,39 @@ from object_detection.utils import visualization_utils as viz_utils
 
 from idmanager import IDManager
 
+
 class Model:
     """
         Class that will load a tensorflow Model
-        and manage the camera connection. 
+        and manage the camera connection.
 
         The model requires the model path, the label map path,
-        and a cv2 camera object. 
+        and a cv2 camera object.
 
-        Pass True for low_memory if your system has less memory. 
+        Pass True for low_memory if your system has less memory.
     """
 
-    def __init__(self, a_model_path, a_label_path, camera_object, max_boxes, min_score_thresh, low_memory = False):
+    def __init__(self, a_model_path, a_label_path, camera_object,
+                 max_boxes, min_score_thresh, low_memory=False):
         """
             Set up everything to run
         """
         self.max_boxes = max_boxes
         self.thresh = min_score_thresh
 
-        # Suppress TensorFlow logging 
+        # Suppress TensorFlow logging
         tf.get_logger().setLevel('ERROR')
 
-        if low_memory: 
+        if low_memory:
             # enable dynamic memory
             gpus = tf.config.experimental.list_physical_devices('GPU')
             for gpu in gpus:
                 tf.config.experimental.set_memory_growth(gpu, True)
-        
+
         # Load the Model
-        self.detector_function = tf.saved_model.load(a_model_path) 
-        self.category_index = label_map_util.create_category_index_from_labelmap(a_label_path, use_display_name=True)
+        self.detector_function = tf.saved_model.load(a_model_path)
+        self.cat_indx = label_map_util.create_category_index_from_labelmap(
+            a_label_path, use_display_name=True)
         self.drone_category = 1
         self.flag_category = 2
 
@@ -51,8 +54,8 @@ class Model:
         self.id_manager = IDManager()
 
         # Create an Initial ID for each drone used during flight
-        self.id_manager.createID((20,20),(255,0,255))
-        self.id_manager.createID((0,0),(255,0,255))
+        self.id_manager.createID((20, 20), (255, 0, 255))
+        self.id_manager.createID((0, 0), (255, 0, 255))
 
         # Create attritubes for commonly accessed items so they don't
         # have to be juggled around Method calls
@@ -74,7 +77,7 @@ class Model:
         self.img = img_np
 
         return None
-    
+
     def updateImg(self):
         """
             Function to update the image attritube
@@ -84,11 +87,11 @@ class Model:
         self.setImg(img)
 
         return None
-    
+
     def updateDetections(self):
         """
             Function to update the detections attritube
-            with a new picture 
+            with a new picture
         """
         self.updateImg()
         self.detections = self.getNewDetections()
@@ -112,6 +115,18 @@ class Model:
 
         return detections
 
+    def basic_update_thread(self):
+        while True:
+            self.updateDetections()
+            self.update_centers(self.max_boxes)
+
+    def basic_img_thread(self):
+        while True:
+            img = self.draw_bounding_boxes(self.img)
+            img = self.id_manager.draw_id_nums(img)
+            img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+            self.bounding_box_img = img
+
     def update_bounding_boxes_thread(self):
         while True:
             self.updateDetections()
@@ -120,21 +135,20 @@ class Model:
             img = self.id_manager.draw_IDS_history(img, 10)
             img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
             self.bounding_box_img = img
-    
+
     def update_vectors_thread(self):
         while True:
-            ## Set the starting positions for use later
+            # Set the starting positions for use later
             self.id_manager.set_starting_positions()
 
-            ## Update information for model
+            # Update information for model
             self.updateDetections()
             self.update_centers(self.max_boxes)
 
-            ## Set the ending position
+            # Set the ending position
             self.id_manager.set_ending_positions()
 
-
-            ## Compute the vectors and turn angles 
+            # Compute the vectors and turn angles
             self.computeDirectionVectors()
             self.computeFlagVector()
             self.computeTurnAngles()
@@ -146,13 +160,13 @@ class Model:
             img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
             self.bounding_box_img = img
 
-    def draw_bounding_boxes(self, img = None):
+    def draw_bounding_boxes(self, img=None):
         """
             Implementation of the object_detection API box drawer.
             Function will draw the bounding boxes of detctions on an image.
 
-            Optional: Pass in your own img. 
-            Must be a numpy array in RGB. 
+            Optional: Pass in your own img.
+            Must be a numpy array in RGB.
 
             If no image is passed, a copy of self.img will be used.
         """
@@ -161,25 +175,26 @@ class Model:
         else:
             drawn_img = img
 
-        self.detections['detection_classes'] = self.detections['detection_classes'].astype(np.int64)
+        classes = self.detections['detection_classes'].astype(np.int64)
         viz_utils.visualize_boxes_and_labels_on_image_array(
             drawn_img,
             self.detections['detection_boxes'],
-            self.detections['detection_classes'],
+            classes,
             self.detections['detection_scores'],
-            self.category_index,
+            self.cat_indx,
             use_normalized_coordinates=True,
-            max_boxes_to_draw= self.max_boxes,
-            min_score_thresh= self.thresh,
+            max_boxes_to_draw=self.max_boxes,
+            min_score_thresh=self.thresh,
             agnostic_mode=False)
 
         return drawn_img
-    def draw_detected_centers(self, img = None):
+
+    def draw_detected_centers(self, img=None):
         """
             Funciton to draw what centers were detected.
 
-            Optional: Pass in your own img. 
-            Must be a numpy array in RGB. 
+            Optional: Pass in your own img.
+            Must be a numpy array in RGB.
 
             If no image is passed, a copy of self.img will be used.
         """
@@ -189,39 +204,44 @@ class Model:
             drawn_img = img
 
         for d_center, f_center in self.drone_centers, self.flag_centers:
-            drawn_img = cv2.circle(drawn_img, d_center, radius=4, color=(0,255,255), thickness=-1)
-            drawn_img = cv2.circle(drawn_img, f_center, radius=4, color=(0,255,255), thickness=-1)
+            drawn_img = cv2.circle(drawn_img, d_center, radius=4,
+                                   color=(0, 255, 255), thickness=-1)
+            drawn_img = cv2.circle(drawn_img, f_center, radius=4,
+                                   color=(0, 255, 255), thickness=-1)
 
         return drawn_img
-    
+
     def compute_center(self, box):
         """
             Method to compute the center of a box.
-            Box is the normalized coords from the model. 
+            Box is the normalized coords from the model.
         """
         # Normalized coordinates from the model
         (ymin, xmin, ymax, xmax) = tuple(box.tolist())
-        # Actual coordinates on the image 
-        (left, right, top, bottom) = (xmin * self.imwidth, xmax * self.imwidth, ymin * self.imheight, ymax * self.imheight)
+        # Actual coordinates on the image
+        (left, right, top, bottom) = (xmin * self.imwidth,
+                                      xmax * self.imwidth,
+                                      ymin * self.imheight,
+                                      ymax * self.imheight)
 
-        xavg = (left + right) // 2 
+        xavg = (left + right) // 2
         yavg = (bottom + top) // 2
-            
+
         # Append a tuple containing the cordinates to the list of centers
         return (int(xavg), int(yavg))
-    
+
     def update_centers(self, max_num_detections):
         """
             Function to get the flags center from detections.
-            Will only look at max_num_detections number of detections. 
+            Will only look at max_num_detections number of detections.
         """
         drone_cents = []
         flag_cents = []
 
         index = 0
-        # Only look at the top few we specifiy. 
+        # Only look at the top few we specifiy.
         for box in self.detections['detection_boxes'][0:max_num_detections]:
-            
+
             # Computer the average centers cords
             center = self.compute_center(box)
 
@@ -231,20 +251,20 @@ class Model:
 
             if confidence > self.thresh:
                 if class_category == self.drone_category:
-                    drone_cents.append(center) 
+                    drone_cents.append(center)
                 elif class_category == self.flag_category:
                     flag_cents.append(center)
-                
+
             index += 1
-        
+
         self.drone_centers = drone_cents
         self.flag_centers = flag_cents
 
         self.id_manager.updatePositions(drone_cents)
         self.id_manager.updateFlags(flag_cents)
 
-        return None 
-    
+        return None
+
     def compute_2d_vector(self, point2, point1):
         """
             Function to compute a 2d vector given two points
@@ -255,15 +275,15 @@ class Model:
         vector = (int(x2-x1), int(y2-y1))
 
         return vector
-    
+
     def dot_product(self, vector1, vector2):
         """
             Function to compute the dot product of two vectors
         """
         (x1, y1) = vector1
-        (x2, y2) = vector2 
+        (x2, y2) = vector2
 
-        dot = x1*x2 + y1*y2 
+        dot = x1*x2 + y1*y2
 
         return dot
 
@@ -271,36 +291,39 @@ class Model:
         """
             Function to compute a determinate
         """
-        (x1,y1) = vector1
-        (x2,y2) = vector2
+        (x1, y1) = vector1
+        (x2, y2) = vector2
 
-        det = x1*y2 - y1*x2 
+        det = x1*y2 - y1*x2
 
         return det
-    
-    def computeDirectionVectors(self): 
+
+    def computeDirectionVectors(self):
         """
             Function to compute the direction vectors for each ID
         """
 
         for id in self.id_manager.IDS:
-            id.dir_vector = self.compute_2d_vector(id.ending_position, id.starting_position)
-        
+            id.dir_vector = self.compute_2d_vector(id.ending_position,
+                                                   id.starting_position)
+
         return None
-    
+
     def computeFlagVector(self):
         """
-            Function to compute the direction vector to the appropriate flag for each ID
+            Function to compute the direction vector
+            to the appropriate flag for each ID.
         """
 
         for id in self.id_manager.IDS:
-            id.flag_vector = self.compute_2d_vector(id.flag_point, id.ending_position)
+            id.flag_vector = self.compute_2d_vector(id.flag_point,
+                                                    id.ending_position)
 
         return None
 
     def computeTurnAngles(self):
         """
-            Function to compute the angle a Drone needs to 
+            Function to compute the angle a Drone needs to
             turn to face a flag
         """
 
@@ -310,7 +333,3 @@ class Model:
             id.turn_angle = math.atan2(det, dot) * 180/math.pi
 
         return None
-
-        
-
-        
