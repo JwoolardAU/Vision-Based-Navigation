@@ -2,6 +2,7 @@ import tensorflow as tf
 import numpy as np
 import cv2
 import math
+import time
 
 # object_detection API Imports
 from object_detection.utils import label_map_util
@@ -235,27 +236,28 @@ class Model:
             Function to get the flags center from detections.
             Will only look at max_num_detections number of detections.
         """
+
+        boxes = self.detections['detection_boxes'][0:max_num_detections]
+        confidences = self.detections['detection_scores']
+        classes = self.class_category = self.detections['detection_classes']
+
         drone_cents = []
         flag_cents = []
-
-        index = 0
         # Only look at the top few we specifiy.
-        for box in self.detections['detection_boxes'][0:max_num_detections]:
-
-            # Computer the average centers cords
-            center = self.compute_center(box)
+        for index, box in enumerate(boxes):
 
             # Determine the cateogry and append it to the appropriate list
-            class_category = self.detections['detection_classes'][index]
-            confidence = self.detections['detection_scores'][index]
+            class_category = classes[index]
+            confidence = confidences[index]
 
             if confidence > self.thresh:
+                # Computer the average centers cords
+                center = self.compute_center(box)
+
                 if class_category == self.drone_category:
                     drone_cents.append(center)
                 elif class_category == self.flag_category:
                     flag_cents.append(center)
-
-            index += 1
 
         self.drone_centers = drone_cents
         self.flag_centers = flag_cents

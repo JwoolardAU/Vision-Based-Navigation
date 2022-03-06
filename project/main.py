@@ -4,6 +4,8 @@ from model import Model
 
 
 def main():
+    """ Entry to the program"""
+
     PATH_TO_SAVED_MODEL = r'.\resources\model\saved_model'
     PATH_TO_LABELS = r'.\resources\annotations\label_map.pbtxt'
 
